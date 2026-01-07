@@ -1,0 +1,26 @@
+storage:
+  root: data
+  uploads: data/uploads
+  outputs: data/outputs
+  summaries: data/summaries
+  jobs: data/jobs
+
+batching:
+  default_batch_size: 10
+  max_batch_size: 50
+  max_workers: 5
+
+retry:
+  max_retries: 3
+  backoff_base_s: 0.5
+  backoff_max_s: 8.0
+
+grok:
+  provider: grok
+  timeout_s: 120
+  temperature: 0.2
+
+claude:
+  provider: claude
+  timeout_s: 120
+  temperature: 0.3

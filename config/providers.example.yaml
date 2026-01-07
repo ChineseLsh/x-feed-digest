@@ -1,0 +1,44 @@
+# X Feed Digest - LLM Provider Configuration
+# Copy this file to providers.yaml and fill in your API keys
+
+providers:
+  # Grok - Used for fetching X/Twitter data
+  # Grok has real-time access to X/Twitter posts
+  grok:
+    type: openai_compatible
+    api_key: ${GROK_API_KEY}           # Or paste your key directly
+    base_url: https://api.x.ai/v1
+    model: grok-2
+    # headers:                          # Optional custom headers
+    #   X-Custom-Header: value
+
+  # Claude - Used for summarizing tweets into a digest
+  # Any OpenAI-compatible API that supports chat completions will work
+  claude:
+    type: openai_compatible
+    api_key: ${CLAUDE_API_KEY}         # Or paste your key directly
+    base_url: https://api.anthropic.com/v1
+    model: claude-sonnet-4-20250514
+
+# Alternative configurations:
+#
+# Using OpenAI instead of Claude:
+#   openai:
+#     type: openai_compatible
+#     api_key: ${OPENAI_API_KEY}
+#     base_url: https://api.openai.com/v1
+#     model: gpt-4o
+#
+# Using a local LLM (Ollama):
+#   local:
+#     type: openai_compatible
+#     api_key: ""
+#     base_url: http://localhost:11434/v1
+#     model: llama3
+#
+# Using a third-party proxy:
+#   proxy:
+#     type: openai_compatible
+#     api_key: your-proxy-key
+#     base_url: https://your-proxy.com/v1
+#     model: gpt-4o
