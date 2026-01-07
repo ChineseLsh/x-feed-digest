@@ -1,139 +1,141 @@
 # X Feed Digest
 
-> Transform your X/Twitter following list into a curated daily digest with AI-powered analysis.
+中文 | [English](README_EN.md)
 
-X Feed Digest is an open-source tool that fetches tweets from your X/Twitter following list and generates an intelligent summary using AI. It leverages Grok's real-time X data access to collect tweets and Claude's analytical capabilities to produce editor-quality digests.
+> 将你的 X/Twitter 关注列表转化为 AI 精选的每日摘要
 
-## Features
+X Feed Digest 是一个开源工具，可以从你的 X/Twitter 关注列表中获取推文，并使用 AI 生成智能摘要。它利用 Grok 的实时 X 数据访问能力来收集推文，并使用 Claude 的分析能力生成编辑级别的精选摘要。
 
-- **CSV Upload**: Import your X/Twitter following list exported as CSV
-- **Real-time Tweet Fetching**: Uses Grok API to fetch tweets from the past 24 hours
-- **Multi-threaded Processing**: Concurrent batch processing for faster data collection
-- **AI-Powered Summary**: Claude generates a curated digest with categorized insights
-- **Job History**: Track and revisit all your previous digest jobs
-- **Modern Web UI**: Clean Vue 3 interface with real-time progress tracking
+## 功能特性
 
-## How It Works
+- **CSV 上传**：导入从 X/Twitter 导出的关注列表 CSV 文件
+- **实时推文获取**：使用 Grok API 获取过去 24 小时的推文
+- **多线程处理**：并发批处理，加速数据收集
+- **AI 智能摘要**：Claude 生成分类整理的精选摘要
+- **历史记录**：追踪和查看所有历史任务
+- **现代化界面**：简洁的 Vue 3 界面，实时进度显示
+
+## 工作流程
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Upload CSV │ ──▶ │  Grok API   │ ──▶ │  Claude AI  │ ──▶ │   Digest    │
-│ (Following) │     │ (Fetch 24h) │     │ (Summarize) │     │  (Output)   │
+│  上传 CSV   │ ──▶ │   Grok API  │ ──▶ │  Claude AI  │ ──▶ │   摘要输出  │
+│  (关注列表) │     │  (获取24h)  │     │   (总结)    │     │            │
 └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
 ```
 
-1. **Upload** your X/Twitter following list CSV (exported from X)
-2. **Fetch** tweets from each user in the past 24 hours via Grok
-3. **Analyze** collected tweets using Claude with an editor-style prompt
-4. **Output** a structured digest with highlights, categories, and recommendations
+1. **上传** 你的 X/Twitter 关注列表 CSV（从 X 导出）
+2. **获取** 过去 24 小时内每个用户的推文（通过 Grok）
+3. **分析** 使用 Claude 和编辑级 Prompt 分析收集到的推文
+4. **输出** 结构化的摘要，包含亮点、分类和推荐
 
-## Tech Stack
+## 技术栈
 
-### Backend
-- **Python 3.10+** with FastAPI
-- **OpenAI-compatible API client** for LLM integration
-- **ThreadPoolExecutor** for concurrent processing
-- **YAML-based configuration**
+### 后端
+- **Python 3.10+** + FastAPI
+- **OpenAI 兼容 API 客户端**
+- **ThreadPoolExecutor** 并发处理
+- **YAML 配置**
 
-### Frontend
-- **Vue 3** with Composition API
-- **TypeScript** for type safety
-- **Pinia** for state management
-- **Element Plus** UI components
-- **Vite** for fast development
+### 前端
+- **Vue 3** Composition API
+- **TypeScript**
+- **Pinia** 状态管理
+- **Element Plus** UI 组件
+- **Vite** 构建工具
 
-## Quick Start
+## 快速开始
 
-### Prerequisites
+### 环境要求
 
 - Python 3.10+
 - Node.js 18+
-- API access to Grok and Claude (or compatible endpoints)
+- Grok 和 Claude API 访问权限（或兼容的 API 端点）
 
-### Installation
+### 安装
 
-1. **Clone the repository**
+1. **克隆仓库**
 ```bash
 git clone https://github.com/ChineseLsh/x-feed-digest.git
 cd x-feed-digest
 ```
 
-2. **Install backend dependencies**
+2. **安装后端依赖**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Install frontend dependencies**
+3. **安装前端依赖**
 ```bash
 cd frontend
 npm install
 cd ..
 ```
 
-4. **Configure API providers**
+4. **配置 API 提供商**
 
-Copy the example config and add your API keys:
+复制示例配置并添加你的 API 密钥：
 ```bash
 cp config/providers.example.yaml config/providers.yaml
 ```
 
-Edit `config/providers.yaml`:
+编辑 `config/providers.yaml`：
 ```yaml
 providers:
   grok:
     type: openai_compatible
-    api_key: your-grok-api-key
+    api_key: 你的-grok-api-key
     base_url: https://api.x.ai/v1
     model: grok-2
 
   claude:
     type: openai_compatible
-    api_key: your-claude-api-key
+    api_key: 你的-claude-api-key
     base_url: https://api.anthropic.com/v1
     model: claude-sonnet-4-20250514
 ```
 
-### Running the Application
+### 运行
 
-1. **Start the backend**
+1. **启动后端**
 ```bash
 python -m uvicorn backend.app:app --host 0.0.0.0 --port 5001 --reload
 ```
 
-2. **Start the frontend** (in a new terminal)
+2. **启动前端**（新终端）
 ```bash
 cd frontend
 npm run dev
 ```
 
-3. **Open your browser** at `http://localhost:3000`
+3. **打开浏览器** 访问 `http://localhost:3000`
 
-## Configuration
+## 配置说明
 
 ### `config/app.yaml`
 
 ```yaml
 storage:
   root: data
-  uploads: data/uploads      # Uploaded CSV files
-  outputs: data/outputs      # Fetched tweets CSV
-  summaries: data/summaries  # Generated digests
-  jobs: data/jobs            # Job status files
+  uploads: data/uploads      # 上传的 CSV 文件
+  outputs: data/outputs      # 获取的推文 CSV
+  summaries: data/summaries  # 生成的摘要
+  jobs: data/jobs            # 任务状态文件
 
 batching:
-  default_batch_size: 10     # Users per batch
-  max_batch_size: 50         # Maximum allowed batch size
-  max_workers: 5             # Concurrent threads for API calls
+  default_batch_size: 10     # 每批用户数
+  max_batch_size: 50         # 最大批次大小
+  max_workers: 5             # API 调用并发线程数
 
 retry:
-  max_retries: 3             # Retry attempts on failure
-  backoff_base_s: 0.5        # Base backoff time
-  backoff_max_s: 8.0         # Maximum backoff time
+  max_retries: 3             # 失败重试次数
+  backoff_base_s: 0.5        # 基础退避时间
+  backoff_max_s: 8.0         # 最大退避时间
 
 grok:
-  provider: grok             # Provider name from providers.yaml
-  timeout_s: 120             # Request timeout
-  temperature: 0.2           # LLM temperature
+  provider: grok             # providers.yaml 中的提供商名称
+  timeout_s: 120             # 请求超时
+  temperature: 0.2           # LLM 温度
 
 claude:
   provider: claude
@@ -141,159 +143,76 @@ claude:
   temperature: 0.3
 ```
 
-### `config/providers.yaml`
+## CSV 格式
 
-Configure your LLM providers. Both Grok and Claude use OpenAI-compatible API format:
+输入 CSV 应包含你的 X/Twitter 关注列表。必需列：
+- `Handle` 或 `username` 或 `screen_name` - Twitter 用户名
 
-```yaml
-providers:
-  grok:
-    type: openai_compatible
-    api_key: ${GROK_API_KEY}      # Supports env var substitution
-    base_url: https://api.x.ai/v1
-    model: grok-2
-    headers:                       # Optional custom headers
-      X-Custom-Header: value
+可选列（传递给 Grok 作为上下文）：
+- `Name` - 显示名称
+- `Bio` - 用户简介
+- `Location` - 位置
+- `FollowersCount` - 粉丝数
+- `FollowingCount` - 关注数
 
-  claude:
-    type: openai_compatible
-    api_key: ${CLAUDE_API_KEY}
-    base_url: https://api.anthropic.com/v1
-    model: claude-sonnet-4-20250514
-```
-
-## CSV Format
-
-The input CSV should contain your X/Twitter following list. Required column:
-- `Handle` or `username` or `screen_name` - The Twitter handle
-
-Optional columns (passed to Grok for context):
-- `Name` - Display name
-- `Bio` - User bio
-- `Location` - User location
-- `FollowersCount` - Follower count
-- `FollowingCount` - Following count
-
-Example:
+示例：
 ```csv
 Handle,Name,Bio,FollowersCount
 elonmusk,Elon Musk,Mars & Cars,180000000
 sama,Sam Altman,OpenAI CEO,3000000
 ```
 
-## API Endpoints
+## API 端点
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/jobs` | Create a new digest job (multipart form with CSV file) |
-| `GET` | `/api/jobs` | List all job history |
-| `GET` | `/api/jobs/{job_id}` | Get job status |
-| `GET` | `/api/jobs/{job_id}/summary` | Get generated digest text |
-| `GET` | `/api/jobs/{job_id}/download` | Download tweets CSV |
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| `POST` | `/api/jobs` | 创建新的摘要任务（multipart 表单上传 CSV） |
+| `GET` | `/api/jobs` | 获取所有历史任务列表 |
+| `GET` | `/api/jobs/{job_id}` | 获取任务状态 |
+| `GET` | `/api/jobs/{job_id}/summary` | 获取生成的摘要文本 |
+| `GET` | `/api/jobs/{job_id}/download` | 下载推文 CSV |
 
-## Project Structure
+## 摘要输出格式
 
-```
-x-feed-digest/
-├── backend/
-│   ├── api/
-│   │   └── routes.py          # FastAPI routes
-│   ├── core/
-│   │   ├── config.py          # YAML config loader
-│   │   └── storage.py         # File storage utilities
-│   ├── llm/
-│   │   └── openai_compatible.py  # LLM client
-│   ├── models/
-│   │   └── schemas.py         # Pydantic models
-│   ├── services/
-│   │   ├── batch_fetcher.py   # Multi-threaded tweet fetcher
-│   │   ├── csv_parser.py      # CSV parsing with encoding detection
-│   │   └── summarizer.py      # AI digest generator
-│   └── app.py                 # FastAPI app factory
-├── frontend/
-│   ├── src/
-│   │   ├── api/               # API client
-│   │   ├── components/        # Vue components
-│   │   ├── stores/            # Pinia stores
-│   │   ├── types/             # TypeScript types
-│   │   └── views/             # Page views
-│   └── vite.config.ts
-├── config/
-│   ├── app.yaml               # Application config
-│   └── providers.yaml         # LLM provider config
-├── data/                      # Runtime data (gitignored)
-└── requirements.txt
-```
+AI 生成的结构化摘要包括：
 
-## Digest Output Format
+1. **今日要点摘要（Deep Brief）** - 100-200 字的精华综述
+2. **编辑精选（Editor's Choice）** - 3-5 条分类整理的精华内容：
+   - 🔧 硬核工具 - 新的开发工具和实用程序
+   - 💡 深度洞察 - 深度技术或行业见解
+   - 📰 重大动态 - 重要公告和更新
+   - 📚 优质资源 - 学习材料和参考资料
+3. **高价值推文完整清单** - 所有有价值的推文及评级（1-3 星）
 
-The AI generates a structured digest including:
+## 开发
 
-1. **Deep Brief** - A 100-200 word summary of the day's highlights
-2. **Editor's Choice** - Top 3-5 curated items categorized as:
-   - Tools - New developer tools and utilities
-   - Insights - Deep technical or industry insights
-   - News - Major announcements and updates
-   - Resources - Learning materials and references
-3. **Full List** - All valuable tweets with ratings (1-3 stars)
-
-## Development
-
-### Backend Development
+### 后端开发
 ```bash
-# Run with auto-reload
+# 带自动重载运行
 python -m uvicorn backend.app:app --reload --port 5001
-
-# Type checking
-mypy backend/
 ```
 
-### Frontend Development
+### 前端开发
 ```bash
 cd frontend
 
-# Development server
+# 开发服务器
 npm run dev
 
-# Type checking
-npm run type-check
-
-# Build for production
+# 生产构建
 npm run build
 ```
 
-## Environment Variables
+## 许可证
 
-You can use environment variables in `providers.yaml`:
+MIT License - 详见 [LICENSE](LICENSE)
 
-```bash
-export GROK_API_KEY=your-key-here
-export CLAUDE_API_KEY=your-key-here
-```
+## 贡献
 
-Then reference them in config:
-```yaml
-api_key: ${GROK_API_KEY}
-```
+欢迎贡献！请随时提交 Pull Request。
 
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Acknowledgments
-
-- [Grok](https://x.ai/) for real-time X/Twitter data access
-- [Claude](https://anthropic.com/) for intelligent summarization
-- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
-- [Vue.js](https://vuejs.org/) for the frontend framework
-- [Element Plus](https://element-plus.org/) for UI components
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 打开 Pull Request
