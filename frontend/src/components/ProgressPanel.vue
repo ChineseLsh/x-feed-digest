@@ -17,17 +17,32 @@
       <span>批次大小: {{ job.batch_size }}</span>
       <span v-if="job.total_users">用户数: {{ job.total_users }}</span>
     </div>
+
+    <BatchList
+      v-if="job?.batches && job.batches.length > 0"
+      :batches="job.batches"
+      :show-aggregate="showAggregate"
+      @retry="$emit('retryBatch', $event)"
+      @aggregate="$emit('aggregate')"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { Loading } from '@element-plus/icons-vue'
 import type { Job } from '@/types'
+import BatchList from './BatchList.vue'
 
 defineProps<{
   percent: number
   text: string
   job: Job | null
+  showAggregate?: boolean
+}>()
+
+defineEmits<{
+  retryBatch: [batchIdx: number]
+  aggregate: []
 }>()
 </script>
 

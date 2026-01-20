@@ -36,3 +36,15 @@ export async function getJobSummary(jobId: string): Promise<string> {
 export function getDownloadUrl(jobId: string): string {
   return `/api/jobs/${jobId}/download`
 }
+
+export async function retryBatch(jobId: string, batchIdx: number): Promise<JobResponse> {
+  const resp = await api.post<JobResponse>(`/jobs/${jobId}/batches/${batchIdx}/retry`)
+  return resp.data
+}
+
+export async function aggregateJob(jobId: string, summarize: boolean = true): Promise<JobResponse> {
+  const resp = await api.post<JobResponse>(`/jobs/${jobId}/aggregate`, null, {
+    params: { summarize }
+  })
+  return resp.data
+}

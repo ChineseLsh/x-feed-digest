@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Job } from '@/types'
-import { createJob, getJobStatus, getJobSummary, getDownloadUrl, listJobs } from '@/api/job'
+import { createJob, getJobStatus, getJobSummary, getDownloadUrl, listJobs, retryBatch, aggregateJob } from '@/api/job'
 
 export const useJobStore = defineStore('job', () => {
   const currentJob = ref<Job | null>(null)
@@ -19,6 +19,20 @@ export const useJobStore = defineStore('job', () => {
 
   const isDone = computed(() => currentJob.value?.status === 'done')
   const isFailed = computed(() => currentJob.value?.status === 'failed')
+
+  const hasFailedBatches = computed(() => {
+    if (!currentJob.value) return false
+    return (currentJob.value.failed_batches || 0) > 0
+  })
+
+  const hasSucceededBatches = computed(() => {
+    if (!currentJob.value) return false
+    return (currentJob.value.succeeded_batches || 0) > 0
+  })
+
+  const canAggregate = computed(() => {
+    return isFailed.value && hasSucceededBatches.value
+  })
 
   const progressPercent = computed(() => {
     if (!currentJob.value) return 0
@@ -117,6 +131,28 @@ export const useJobStore = defineStore('job', () => {
     error.value = null
   }
 
+  async function retryFailedBatch(batchIdx: number) {
+    if (!currentJob.value) return
+    try {
+      await retryBatch(currentJob.value.job_id, batchIdx)
+      await pollStatus()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || e.message || '重试失败'
+    }
+  }
+
+  async function forceAggregate() {
+    if (!currentJob.value) return
+    try {
+      loading.value = true
+      await aggregateJob(currentJob.value.job_id, true)
+      startPolling()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || e.message || '汇总失败'
+      loading.value = false
+    }
+  }
+
   async function fetchHistory() {
     historyLoading.value = true
     try {
@@ -149,11 +185,16 @@ export const useJobStore = defineStore('job', () => {
     isProcessing,
     isDone,
     isFailed,
+    hasFailedBatches,
+    hasSucceededBatches,
+    canAggregate,
     progressPercent,
     progressText,
     submitJob,
     getDownloadLink,
     reset,
+    retryFailedBatch,
+    forceAggregate,
     fetchHistory,
     viewHistoryJob
   }

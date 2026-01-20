@@ -5,9 +5,10 @@ import io
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from backend.llm.openai_compatible import OpenAICompatibleClient
+from backend.core.storage import save_batch_output, set_batch_status
 from backend.services.csv_parser import extract_users, format_user_info
 
 
@@ -99,24 +100,15 @@ def _fetch_single_batch(
     return batch_idx, []
 
 
-def fetch_all_tweets(
+def _init_client_and_config(
     app_cfg: Dict[str, Any],
     providers_cfg: Dict[str, Any],
-    upload_path,
-    batch_size: int,
-    on_batch_complete: Optional[Callable[[int, int], None]] = None,
-) -> str:
-    handles, user_rows = extract_users(upload_path)
-    batches = _chunk(user_rows, batch_size)
-    total_batches = len(batches)
-
+) -> Tuple[OpenAICompatibleClient, str, float, int, int, float, float]:
     retry_cfg = app_cfg.get("retry", {})
     max_retries = int(retry_cfg.get("max_retries", 2))
+    batch_max_retries = int(retry_cfg.get("batch_max_retries", 3))
     backoff_base = float(retry_cfg.get("backoff_base_s", 0.5))
     backoff_max = float(retry_cfg.get("backoff_max_s", 8.0))
-
-    batching_cfg = app_cfg.get("batching", {})
-    max_workers = int(batching_cfg.get("max_workers", 5))
 
     grok_cfg = app_cfg.get("grok", {})
     provider_name = grok_cfg.get("provider", "grok")
@@ -133,15 +125,55 @@ def fetch_all_tweets(
 
     model = provider["model"]
     temperature = float(grok_cfg.get("temperature", 0.2))
+    return client, model, temperature, max_retries, batch_max_retries, backoff_base, backoff_max
 
-    all_rows: List[Dict[str, str]] = []
-    completed_count = 0
-    lock = threading.Lock()
 
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(
-                _fetch_single_batch,
+def _write_batch_status(
+    app_cfg: Dict[str, Any],
+    job_id: Optional[str],
+    batch_idx: int,
+    payload: Dict[str, Any],
+) -> None:
+    if not job_id:
+        return
+    set_batch_status(app_cfg, job_id, batch_idx, payload)
+
+
+def _fetch_batch_with_retries(
+    app_cfg: Dict[str, Any],
+    job_id: Optional[str],
+    batch_idx: int,
+    batch: List[Dict[str, str]],
+    client: OpenAICompatibleClient,
+    model: str,
+    temperature: float,
+    max_retries: int,
+    batch_max_retries: int,
+    backoff_base: float,
+    backoff_max: float,
+) -> Tuple[int, List[Dict[str, str]], Dict[str, Any]]:
+    started_at = int(time.time())
+    max_attempts = batch_max_retries + 1
+    last_error = None
+    final_status: Dict[str, Any] = {
+        "index": batch_idx,
+        "status": "pending",
+        "attempts": 0,
+        "max_attempts": max_attempts,
+        "error": None,
+        "started_at": started_at,
+        "finished_at": None,
+        "last_attempt_at": None,
+    }
+
+    for attempt in range(max_attempts):
+        final_status["attempts"] = attempt + 1
+        final_status["status"] = "running"
+        final_status["error"] = None
+        final_status["last_attempt_at"] = int(time.time())
+        _write_batch_status(app_cfg, job_id, batch_idx, dict(final_status))
+        try:
+            _, rows = _fetch_single_batch(
                 batch_idx,
                 batch,
                 client,
@@ -150,14 +182,146 @@ def fetch_all_tweets(
                 max_retries,
                 backoff_base,
                 backoff_max,
+            )
+            final_status["status"] = "succeeded"
+            final_status["finished_at"] = int(time.time())
+            _write_batch_status(app_cfg, job_id, batch_idx, dict(final_status))
+            if job_id:
+                save_batch_output(app_cfg, job_id, batch_idx, _rows_to_csv(rows))
+            return batch_idx, rows, dict(final_status)
+        except Exception as exc:
+            last_error = str(exc)
+            final_status["status"] = "failed"
+            final_status["error"] = last_error
+            final_status["finished_at"] = int(time.time())
+            _write_batch_status(app_cfg, job_id, batch_idx, dict(final_status))
+            if attempt < batch_max_retries:
+                sleep_s = min(backoff_base * (2**attempt), backoff_max)
+                time.sleep(sleep_s)
+
+    return batch_idx, [], dict(final_status)
+
+
+def fetch_single_batch_for_job(
+    app_cfg: Dict[str, Any],
+    providers_cfg: Dict[str, Any],
+    upload_path,
+    batch_size: int,
+    batch_idx: int,
+    job_id: Optional[str],
+) -> Tuple[bool, Optional[str]]:
+    _, user_rows = extract_users(upload_path)
+    batches = _chunk(user_rows, batch_size)
+    if batch_idx < 0 or batch_idx >= len(batches):
+        raise ValueError("batch_idx out of range")
+
+    client, model, temperature, max_retries, batch_max_retries, backoff_base, backoff_max = _init_client_and_config(
+        app_cfg, providers_cfg
+    )
+    _, rows, status_payload = _fetch_batch_with_retries(
+        app_cfg,
+        job_id,
+        batch_idx,
+        batches[batch_idx],
+        client,
+        model,
+        temperature,
+        max_retries,
+        batch_max_retries,
+        backoff_base,
+        backoff_max,
+    )
+    if status_payload.get("status") != "succeeded":
+        return False, status_payload.get("error")
+    return True, None
+
+
+def fetch_all_tweets(
+    app_cfg: Dict[str, Any],
+    providers_cfg: Dict[str, Any],
+    upload_path,
+    batch_size: int,
+    on_batch_complete: Optional[Callable[[int, int], None]] = None,
+    job_id: Optional[str] = None,
+    include_batch_statuses: bool = False,
+) -> Union[str, Tuple[str, List[Dict[str, Any]]]]:
+    handles, user_rows = extract_users(upload_path)
+    batches = _chunk(user_rows, batch_size)
+    total_batches = len(batches)
+
+    batching_cfg = app_cfg.get("batching", {})
+    max_workers = int(batching_cfg.get("max_workers", 5))
+
+    client, model, temperature, max_retries, batch_max_retries, backoff_base, backoff_max = _init_client_and_config(
+        app_cfg, providers_cfg
+    )
+
+    all_rows: List[Dict[str, str]] = []
+    completed_count = 0
+    lock = threading.Lock()
+    batch_statuses: Dict[int, Dict[str, Any]] = {}
+
+    if job_id:
+        max_attempts = batch_max_retries + 1
+        for batch_idx in range(total_batches):
+            _write_batch_status(
+                app_cfg,
+                job_id,
+                batch_idx,
+                {
+                    "index": batch_idx,
+                    "status": "pending",
+                    "attempts": 0,
+                    "max_attempts": max_attempts,
+                    "error": None,
+                    "started_at": None,
+                    "finished_at": None,
+                    "last_attempt_at": None,
+                },
+            )
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(
+                _fetch_batch_with_retries,
+                app_cfg,
+                job_id,
+                batch_idx,
+                batch,
+                client,
+                model,
+                temperature,
+                max_retries,
+                batch_max_retries,
+                backoff_base,
+                backoff_max,
             ): batch_idx
             for batch_idx, batch in enumerate(batches)
         }
 
         results: Dict[int, List[Dict[str, str]]] = {}
         for future in as_completed(futures):
-            batch_idx, rows = future.result()
-            results[batch_idx] = rows
+            try:
+                batch_idx, rows, status_payload = future.result()
+            except Exception as exc:
+                batch_idx = futures[future]
+                status_payload = {
+                    "index": batch_idx,
+                    "status": "failed",
+                    "attempts": 0,
+                    "max_attempts": batch_max_retries + 1,
+                    "error": str(exc),
+                    "started_at": None,
+                    "finished_at": int(time.time()),
+                    "last_attempt_at": None,
+                }
+                rows = []
+                if job_id:
+                    _write_batch_status(app_cfg, job_id, batch_idx, dict(status_payload))
+
+            batch_statuses[batch_idx] = status_payload
+            if status_payload.get("status") == "succeeded":
+                results[batch_idx] = rows
 
             with lock:
                 completed_count += 1
@@ -167,4 +331,8 @@ def fetch_all_tweets(
     for i in range(total_batches):
         all_rows.extend(results.get(i, []))
 
-    return _rows_to_csv(all_rows)
+    csv_text = _rows_to_csv(all_rows)
+    if include_batch_statuses:
+        ordered_statuses = [batch_statuses[i] for i in sorted(batch_statuses)]
+        return csv_text, ordered_statuses
+    return csv_text

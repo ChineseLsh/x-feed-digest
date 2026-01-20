@@ -12,6 +12,9 @@
       :percent="jobStore.progressPercent"
       :text="jobStore.progressText"
       :job="jobStore.currentJob"
+      :show-aggregate="false"
+      @retry-batch="jobStore.retryFailedBatch"
+      @aggregate="jobStore.forceAggregate"
     />
 
     <!-- 结果展示 -->
@@ -37,6 +40,18 @@
         :description="jobStore.error || '未知错误'"
         show-icon
       />
+
+      <!-- 显示批次详情和汇总按钮 -->
+      <ProgressPanel
+        v-if="jobStore.currentJob?.batches && jobStore.currentJob.batches.length > 0"
+        :percent="jobStore.progressPercent"
+        :text="'部分批次失败'"
+        :job="jobStore.currentJob"
+        :show-aggregate="jobStore.canAggregate"
+        @retry-batch="jobStore.retryFailedBatch"
+        @aggregate="jobStore.forceAggregate"
+      />
+
       <el-button style="margin-top: 16px" @click="jobStore.reset">
         重新开始
       </el-button>
